@@ -1,0 +1,396 @@
+<section class="page-container" aria-labelledby="invoices-title">
+  <header class="workspace-header">
+    <div class="workspace-heading">
+      <p class="breadcrumb">Faturamento <span aria-hidden="true">/</span> Notas fiscais</p>
+      <div class="title-line">
+        <h1 id="invoices-title">Notas fiscais</h1>
+        <span class="module-status">Operacional</span>
+      </div>
+      <p>Criação, acompanhamento de reservas e fechamento das notas.</p>
+    </div>
+
+    <div class="page-commands" aria-label="Ações da página">
+      <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
+        Atualizar <kbd>Alt+R</kbd>
+      </button>
+      <button mat-flat-button type="button" (click)="createInvoice()" [disabled]="creating()">
+        {{ creating() ? 'Criando…' : 'Nova nota' }} <kbd>Alt+N</kbd>
+      </button>
+    </div>
+  </header>
+
+  <dl class="summary-strip" aria-label="Resumo das notas fiscais">
+    <div>
+      <dt>Total</dt>
+      <dd>{{ metrics().total }}</dd>
+    </div>
+    <div class="summary-strip__open">
+      <dt>Abertas</dt>
+      <dd>{{ metrics().open }}</dd>
+    </div>
+    <div class="summary-strip__closed">
+      <dt>Fechadas</dt>
+      <dd>{{ metrics().closed }}</dd>
+    </div>
+    <div class="summary-strip__cancelled">
+      <dt>Canceladas</dt>
+      <dd>{{ metrics().cancelled }}</dd>
+    </div>
+  </dl>
+
+  <section class="data-workspace" aria-labelledby="invoice-list-title">
+    <div class="data-toolbar">
+      <div class="data-toolbar__heading">
+        <h2 id="invoice-list-title">Registro de notas</h2>
+        <span>{{ filteredInvoices().length }} de {{ invoices().length }} registros</span>
+      </div>
+      <div class="panel-controls">
+        <mat-button-toggle-group
+          aria-label="Filtrar notas por situação"
+          [value]="statusFilter()"
+          (valueChange)="setStatusFilter($event)"
+          hideSingleSelectionIndicator
+        >
+          <mat-button-toggle value="all">Todas</mat-button-toggle>
+          <mat-button-toggle value="open">Abertas</mat-button-toggle>
+          <mat-button-toggle value="closed">Fechadas</mat-button-toggle>
+          <mat-button-toggle value="cancelled">Canceladas</mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Busca rápida</mat-label>
+          <input
+            #searchInput
+            matInput
+            type="search"
+            placeholder="Número ou ID"
+            [value]="searchTerm()"
+            (input)="setSearchTerm($event)"
+          />
+          <span matSuffix class="shortcut-hint" aria-hidden="true">/</span>
+        </mat-form-field>
+
+        <div class="panel-buttons">
+          <button
+            mat-stroked-button
+            type="button"
+            class="panel-button"
+            [class.panel-button--active]="activePanel() === 'filters'"
+            [attr.aria-expanded]="activePanel() === 'filters'"
+            aria-controls="invoice-filters-panel"
+            (click)="togglePanel('filters')"
+          >
+            Filtros
+            @if (activeFilterCount() > 0) {
+              <span class="control-count">{{ activeFilterCount() }}</span>
+            }
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            class="panel-button"
+            [class.panel-button--active]="activePanel() === 'columns'"
+            [attr.aria-expanded]="activePanel() === 'columns'"
+            aria-controls="invoice-columns-panel"
+            (click)="togglePanel('columns')"
+          >
+            Exibição
+            <span class="control-count control-count--neutral"
+              >{{ visibleColumns().length }}/{{ columnDefinitions.length }}</span
+            >
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if (activePanel() === 'columns') {
+      <section
+        id="invoice-columns-panel"
+        class="configuration-panel"
+        aria-labelledby="invoice-columns-title"
+      >
+        <div class="configuration-panel__header">
+          <div>
+            <h3 id="invoice-columns-title">Colunas visíveis</h3>
+            <p>A escolha é salva neste navegador. A ação de abrir a nota permanece visível.</p>
+          </div>
+          <button mat-button type="button" (click)="togglePanel('columns')">Fechar</button>
+        </div>
+        <div class="column-options">
+          @for (column of columnDefinitions; track column.key) {
+            <mat-checkbox
+              [checked]="isColumnVisible(column.key)"
+              [disabled]="isColumnVisible(column.key) && visibleColumns().length === 1"
+              (change)="toggleColumn(column.key)"
+            >
+              {{ column.label }}
+            </mat-checkbox>
+          }
+        </div>
+      </section>
+    }
+
+    @if (activePanel() === 'filters') {
+      <section
+        id="invoice-filters-panel"
+        class="configuration-panel filter-panel"
+        aria-labelledby="invoice-filters-title"
+      >
+        <div class="configuration-panel__header">
+          <div>
+            <h3 id="invoice-filters-title">Filtros de notas fiscais</h3>
+            <p>Os resultados e a URL são atualizados imediatamente.</p>
+          </div>
+          <div class="filter-panel__commands">
+            <button
+              mat-button
+              type="button"
+              (click)="clearFilters()"
+              [disabled]="activeFilterCount() === 0"
+            >
+              Limpar filtros
+            </button>
+            <button mat-button type="button" (click)="togglePanel('filters')">Fechar</button>
+          </div>
+        </div>
+        <form class="filter-grid" [formGroup]="filters">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Situação</mat-label>
+            <mat-select formControlName="situation">
+              <mat-option value="all">Todas</mat-option>
+              <mat-option value="open">Abertas</mat-option>
+              <mat-option value="closed">Fechadas</mat-option>
+              <mat-option value="cancelled">Canceladas</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Indicador de cancelamento</mat-label>
+            <mat-select formControlName="cancellation">
+              <mat-option value="all">Todos</mat-option>
+              <mat-option value="cancelled">Canceladas</mat-option>
+              <mat-option value="not-cancelled">Não canceladas</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Número inicial</mat-label>
+            <input matInput type="number" min="1" step="1" formControlName="numberMin" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Número final</mat-label>
+            <input matInput type="number" min="1" step="1" formControlName="numberMax" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>ID da nota</mat-label>
+            <input matInput formControlName="id" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Itens mínimo</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="itemsMin" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Itens máximo</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="itemsMax" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Quantidade mínima</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="quantityMin" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Quantidade máxima</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="quantityMax" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field--wide">
+            <mat-label>ID de produto contido na nota</mat-label>
+            <input matInput formControlName="productId" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Criada a partir de</mat-label>
+            <input matInput type="date" formControlName="createdFrom" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Criada até</mat-label>
+            <input matInput type="date" formControlName="createdTo" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Fechada a partir de</mat-label>
+            <input matInput type="date" formControlName="closedFrom" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Fechada até</mat-label>
+            <input matInput type="date" formControlName="closedTo" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Cancelada a partir de</mat-label>
+            <input matInput type="date" formControlName="cancelledFrom" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Cancelada até</mat-label>
+            <input matInput type="date" formControlName="cancelledTo" />
+          </mat-form-field>
+        </form>
+      </section>
+    }
+
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Carregando notas fiscais" />
+    }
+
+    @if (error()) {
+      <div class="state-message state-message--error" role="alert">
+        <div>
+          <strong>Não foi possível concluir a operação</strong>
+          <p>{{ error() }}</p>
+        </div>
+        <button mat-stroked-button type="button" (click)="reload()">Tentar novamente</button>
+      </div>
+    }
+
+    @if (!loading() && !error() && invoices().length === 0) {
+      <div class="empty-state">
+        <h3>Nenhuma nota fiscal criada</h3>
+        <p>Use “Nova nota” ou Alt+N para iniciar uma emissão.</p>
+        <button mat-flat-button type="button" (click)="createInvoice()">Nova nota</button>
+      </div>
+    } @else if (!loading() && filteredInvoices().length === 0) {
+      <div class="empty-state empty-state--compact">
+        <h3>Nenhuma nota localizada</h3>
+        <p>Revise a busca ou os filtros aplicados.</p>
+        <button mat-stroked-button type="button" (click)="clearFilters()">Limpar filtros</button>
+      </div>
+    } @else if (filteredInvoices().length > 0) {
+      <div class="desktop-table">
+        <table mat-table [dataSource]="filteredInvoices()">
+          <ng-container matColumnDef="number">
+            <th mat-header-cell *matHeaderCellDef>Número</th>
+            <td mat-cell *matCellDef="let invoice">
+              <strong>#{{ invoice.number }}</strong>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Situação</th>
+            <td mat-cell *matCellDef="let invoice">
+              <span [class]="statusClass(invoice)"
+                ><span aria-hidden="true"></span>{{ statusLabel(invoice) }}</span
+              >
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="lines">
+            <th mat-header-cell *matHeaderCellDef class="numeric-column">Itens</th>
+            <td mat-cell *matCellDef="let invoice" class="numeric-column">
+              {{ invoice.lines.length }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="quantity">
+            <th mat-header-cell *matHeaderCellDef class="numeric-column">Quantidade</th>
+            <td mat-cell *matCellDef="let invoice" class="numeric-column">
+              {{ totalQuantity(invoice) }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>Criada em</th>
+            <td mat-cell *matCellDef="let invoice" class="date-cell">
+              {{ invoice.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="closedAt">
+            <th mat-header-cell *matHeaderCellDef>Fechada em</th>
+            <td mat-cell *matCellDef="let invoice" class="date-cell">
+              {{ (invoice.closedAt | date: 'dd/MM/yyyy HH:mm') || '—' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="cancelledAt">
+            <th mat-header-cell *matHeaderCellDef>Cancelada em</th>
+            <td mat-cell *matCellDef="let invoice" class="date-cell">
+              {{ (invoice.cancelledAt | date: 'dd/MM/yyyy HH:mm') || '—' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="isCancelled">
+            <th mat-header-cell *matHeaderCellDef>Cancelada</th>
+            <td mat-cell *matCellDef="let invoice">{{ invoice.isCancelled ? 'Sim' : 'Não' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="id">
+            <th mat-header-cell *matHeaderCellDef>ID técnico</th>
+            <td mat-cell *matCellDef="let invoice" class="technical-cell">{{ invoice.id }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="actions-cell">Ações</th>
+            <td mat-cell *matCellDef="let invoice" class="actions-cell">
+              <a mat-button [routerLink]="['/notas', invoice.id]" queryParamsHandling="preserve"
+                >Abrir nota</a
+              >
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+        </table>
+      </div>
+
+      <div class="mobile-invoice-list" aria-label="Lista de notas fiscais">
+        @for (invoice of filteredInvoices(); track invoice.id) {
+          <article class="invoice-card">
+            <div class="invoice-card__heading">
+              @if (isColumnVisible('number')) {
+                <strong>#{{ invoice.number }}</strong>
+              }
+              @if (isColumnVisible('status')) {
+                <span [class]="statusClass(invoice)">{{ statusLabel(invoice) }}</span>
+              }
+            </div>
+            <dl class="record-fields">
+              @if (isColumnVisible('lines')) {
+                <div>
+                  <dt>Itens</dt>
+                  <dd>{{ invoice.lines.length }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('quantity')) {
+                <div>
+                  <dt>Quantidade</dt>
+                  <dd>{{ totalQuantity(invoice) }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('createdAt')) {
+                <div>
+                  <dt>Criada em</dt>
+                  <dd>{{ invoice.createdAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('closedAt')) {
+                <div>
+                  <dt>Fechada em</dt>
+                  <dd>{{ (invoice.closedAt | date: 'dd/MM/yyyy HH:mm') || '—' }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('cancelledAt')) {
+                <div>
+                  <dt>Cancelada em</dt>
+                  <dd>{{ (invoice.cancelledAt | date: 'dd/MM/yyyy HH:mm') || '—' }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('isCancelled')) {
+                <div>
+                  <dt>Cancelada</dt>
+                  <dd>{{ invoice.isCancelled ? 'Sim' : 'Não' }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('id')) {
+                <div class="record-field--wide">
+                  <dt>ID técnico</dt>
+                  <dd>{{ invoice.id }}</dd>
+                </div>
+              }
+            </dl>
+            <a
+              mat-stroked-button
+              [routerLink]="['/notas', invoice.id]"
+              queryParamsHandling="preserve"
+              >Abrir nota</a
+            >
+          </article>
+        }
+      </div>
+    }
+  </section>
+</section>

@@ -1,0 +1,51 @@
+.dialog-intro {
+  margin: 0 0 16px;
+  color: var(--korp-text-muted);
+  font-size: 13px;
+}
+mat-dialog-content {
+  min-height: 190px;
+  max-height: none;
+  overflow: visible;
+}
+.form-grid {
+  display: grid;
+  min-width: min(590px, calc(100vw - 72px));
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 16px;
+}
+.form-grid mat-form-field {
+  width: 100%;
+}
+.no-products {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--korp-outline);
+  border-radius: 4px;
+  background: var(--korp-surface-subtle);
+  color: var(--korp-text-muted);
+  font-size: 12px;
+}
+mat-spinner {
+  display: inline-block;
+}
+@media (max-width: 620px) {
+  mat-dialog-content {
+    min-height: 0;
+    max-height: calc(100dvh - 150px);
+    overflow: auto;
+  }
+  .form-grid {
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 560px) {
+  mat-dialog-content {
+    min-height: 0;
+    max-height: calc(100dvh - 132px);
+    overflow: auto;
+  }
+}

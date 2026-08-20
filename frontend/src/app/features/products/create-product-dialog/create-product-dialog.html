@@ -1,0 +1,88 @@
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <h2 mat-dialog-title>Novo produto</h2>
+
+  <mat-dialog-content>
+    <p class="dialog-intro">
+      Cadastre a identificação e o saldo inicial. O código ficará bloqueado após a criação.
+    </p>
+
+    @if (error()) {
+      <p class="dialog-error" role="alert" tabindex="-1">{{ error() }}</p>
+    }
+
+    <div class="form-grid">
+      <mat-form-field appearance="outline" class="code-field">
+        <mat-label>Código</mat-label>
+        <input
+          #codeInput
+          matInput
+          formControlName="code"
+          maxlength="50"
+          autocomplete="off"
+          cdkFocusInitial
+        />
+        <mat-hint>Único e permanente</mat-hint>
+        @if (form.controls.code.hasError('required')) {
+          <mat-error>Informe o código do produto.</mat-error>
+        } @else if (form.controls.code.hasError('maxlength')) {
+          <mat-error>Use no máximo 50 caracteres.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="name-field">
+        <mat-label>Nome</mat-label>
+        <input #nameInput matInput formControlName="name" maxlength="120" autocomplete="off" />
+        <mat-hint align="end">{{ form.controls.name.value.length }}/120</mat-hint>
+        @if (form.controls.name.hasError('required')) {
+          <mat-error>Informe o nome do produto.</mat-error>
+        } @else if (form.controls.name.hasError('maxlength')) {
+          <mat-error>Use no máximo 120 caracteres.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="quantity-field">
+        <mat-label>Saldo inicial</mat-label>
+        <input
+          #quantityInput
+          matInput
+          type="number"
+          min="0"
+          step="1"
+          formControlName="initialQuantity"
+        />
+        <mat-hint>Pode começar em zero</mat-hint>
+        @if (form.controls.initialQuantity.invalid) {
+          <mat-error>Informe um número inteiro igual ou maior que zero.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="description-field">
+        <mat-label>Descrição</mat-label>
+        <textarea
+          #descriptionInput
+          matInput
+          formControlName="description"
+          maxlength="200"
+          rows="3"
+        ></textarea>
+        <mat-hint align="end">{{ form.controls.description.value.length }}/200</mat-hint>
+        @if (form.controls.description.hasError('required')) {
+          <mat-error>Informe uma descrição.</mat-error>
+        }
+      </mat-form-field>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" [disabled]="saving()">
+      Cancelar
+    </button>
+    <button mat-flat-button type="submit" [disabled]="saving()">
+      @if (saving()) {
+        <mat-spinner diameter="18" aria-label="Salvando produto" />
+      } @else {
+        Cadastrar produto
+      }
+    </button>
+  </mat-dialog-actions>
+</form>

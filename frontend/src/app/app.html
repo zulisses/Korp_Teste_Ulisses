@@ -1,0 +1,71 @@
+<div class="erp-shell">
+  <aside class="module-nav">
+    <a class="brand" routerLink="/produtos" aria-label="Korp ERP — início">
+      <span class="brand__mark" aria-hidden="true">K</span>
+      <span class="brand__copy">
+        <strong>Korp</strong>
+        <small>Gestão empresarial</small>
+      </span>
+    </a>
+
+    <nav aria-label="Módulos do sistema">
+      <p class="nav-section-label">Operações</p>
+      <a
+        class="module-link"
+        routerLink="/produtos"
+        routerLinkActive="module-link--active"
+        matTooltip="Produtos e estoque"
+        matTooltipPosition="right"
+      >
+        <span class="module-link__icon" aria-hidden="true">PR</span>
+        <span class="module-link__text">
+          <strong>Produtos</strong>
+          <small>Cadastro e estoque</small>
+        </span>
+      </a>
+      <a
+        class="module-link"
+        routerLink="/notas"
+        routerLinkActive="module-link--active"
+        matTooltip="Notas fiscais"
+        matTooltipPosition="right"
+      >
+        <span class="module-link__icon" aria-hidden="true">NF</span>
+        <span class="module-link__text">
+          <strong>Notas fiscais</strong>
+          <small>Emissão e faturamento</small>
+        </span>
+      </a>
+    </nav>
+
+    <div class="nav-footer">
+      <span class="nav-footer__status" aria-hidden="true"></span>
+      <span class="nav-footer__copy">
+        <strong>Ambiente local</strong>
+        <small>Operação</small>
+      </span>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <mat-toolbar class="utility-bar">
+      <div class="utility-context">
+        <span class="utility-context__product">Korp ERP</span>
+        <span aria-hidden="true">/</span>
+        <span>Operações</span>
+      </div>
+      <span class="utility-spacer"></span>
+      <div class="operator-badge" aria-label="Perfil do operador">
+        <span class="operator-badge__avatar" aria-hidden="true">OP</span>
+        <span class="operator-badge__copy">
+          <strong>Operador</strong>
+          <small>Sessão local</small>
+        </span>
+      </div>
+    </mat-toolbar>
+
+    <main class="app-main">
+      <router-outlet />
+    </main>
+  </div>
+</div>

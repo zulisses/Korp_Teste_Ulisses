@@ -1,0 +1,410 @@
+<section class="page-container" aria-labelledby="products-title">
+  <header class="workspace-header">
+    <div class="workspace-heading">
+      <p class="breadcrumb">Estoque <span aria-hidden="true">/</span> Cadastro</p>
+      <div class="title-line">
+        <h1 id="products-title">Produtos</h1>
+        <span class="module-status">Módulo ativo</span>
+      </div>
+      <p>Cadastro de produtos e controle dos saldos disponível e reservado.</p>
+    </div>
+
+    <div class="page-commands" aria-label="Ações da página">
+      <button mat-stroked-button type="button" (click)="reload()" [disabled]="loading()">
+        Atualizar <kbd>Alt+R</kbd>
+      </button>
+      <button mat-flat-button type="button" (click)="openCreateDialog()">
+        Novo produto <kbd>Alt+N</kbd>
+      </button>
+    </div>
+  </header>
+
+  <dl class="summary-strip" aria-label="Resumo do estoque">
+    <div>
+      <dt>Produtos</dt>
+      <dd>{{ metrics().count }}</dd>
+    </div>
+    <div class="summary-strip__available">
+      <dt>Disponível</dt>
+      <dd>{{ metrics().available }}</dd>
+    </div>
+    <div class="summary-strip__reserved">
+      <dt>Reservado</dt>
+      <dd>{{ metrics().reserved }}</dd>
+    </div>
+    <div class="summary-strip__inactive">
+      <dt>Inativos</dt>
+      <dd>{{ metrics().inactive }}</dd>
+    </div>
+  </dl>
+
+  <section class="data-workspace" aria-labelledby="product-list-title">
+    <div class="data-toolbar">
+      <div class="data-toolbar__heading">
+        <h2 id="product-list-title">Cadastro de produtos</h2>
+        <span>{{ filteredProducts().length }} de {{ products().length }} registros</span>
+      </div>
+
+      <div class="panel-controls">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Busca rápida</mat-label>
+          <input
+            #searchInput
+            matInput
+            type="search"
+            placeholder="Código, nome, descrição ou ID"
+            [value]="searchTerm()"
+            (input)="setSearchTerm($event)"
+          />
+          <span matSuffix class="shortcut-hint" aria-hidden="true">/</span>
+        </mat-form-field>
+        <div class="panel-buttons">
+          <button
+            mat-stroked-button
+            type="button"
+            class="panel-button"
+            [class.panel-button--active]="activePanel() === 'filters'"
+            [attr.aria-expanded]="activePanel() === 'filters'"
+            aria-controls="product-filters-panel"
+            (click)="togglePanel('filters')"
+          >
+            Filtros
+            @if (activeFilterCount() > 0) {
+              <span class="control-count">{{ activeFilterCount() }}</span>
+            }
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            class="panel-button"
+            [class.panel-button--active]="activePanel() === 'columns'"
+            [attr.aria-expanded]="activePanel() === 'columns'"
+            aria-controls="product-columns-panel"
+            (click)="togglePanel('columns')"
+          >
+            Exibição
+            <span class="control-count control-count--neutral"
+              >{{ visibleColumns().length }}/{{ columnDefinitions.length }}</span
+            >
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if (activePanel() === 'columns') {
+      <section
+        id="product-columns-panel"
+        class="configuration-panel"
+        aria-labelledby="product-columns-title"
+      >
+        <div class="configuration-panel__header">
+          <div>
+            <h3 id="product-columns-title">Colunas visíveis</h3>
+            <p>A escolha é salva neste navegador. Ações operacionais permanecem visíveis.</p>
+          </div>
+          <button mat-button type="button" (click)="togglePanel('columns')">Fechar</button>
+        </div>
+        <div class="column-options">
+          @for (column of columnDefinitions; track column.key) {
+            <mat-checkbox
+              [checked]="isColumnVisible(column.key)"
+              [disabled]="isColumnVisible(column.key) && visibleColumns().length === 1"
+              (change)="toggleColumn(column.key)"
+            >
+              {{ column.label }}
+            </mat-checkbox>
+          }
+        </div>
+      </section>
+    }
+
+    @if (activePanel() === 'filters') {
+      <section
+        id="product-filters-panel"
+        class="configuration-panel filter-panel"
+        aria-labelledby="product-filters-title"
+      >
+        <div class="configuration-panel__header">
+          <div>
+            <h3 id="product-filters-title">Filtros de produtos</h3>
+            <p>Os resultados e a URL são atualizados imediatamente.</p>
+          </div>
+          <div class="filter-panel__commands">
+            <button
+              mat-button
+              type="button"
+              (click)="clearFilters()"
+              [disabled]="activeFilterCount() === 0"
+            >
+              Limpar filtros
+            </button>
+            <button mat-button type="button" (click)="togglePanel('filters')">Fechar</button>
+          </div>
+        </div>
+        <form class="filter-grid" [formGroup]="filters">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Código</mat-label>
+            <input matInput formControlName="code" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Nome</mat-label>
+            <input matInput formControlName="name" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Descrição</mat-label>
+            <input matInput formControlName="description" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Status</mat-label>
+            <mat-select formControlName="status">
+              <mat-option value="all">Todos</mat-option>
+              <mat-option value="active">Ativos</mat-option>
+              <mat-option value="inactive">Inativos</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Disponível mínimo</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="availableMin" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Disponível máximo</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="availableMax" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Reservado mínimo</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="reservedMin" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Reservado máximo</mat-label>
+            <input matInput type="number" min="0" step="1" formControlName="reservedMax" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Criado a partir de</mat-label>
+            <input matInput type="date" formControlName="createdFrom" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Criado até</mat-label>
+            <input matInput type="date" formControlName="createdTo" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Atualizado a partir de</mat-label>
+            <input matInput type="date" formControlName="updatedFrom" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Atualizado até</mat-label>
+            <input matInput type="date" formControlName="updatedTo" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field--wide">
+            <mat-label>ID técnico</mat-label>
+            <input matInput formControlName="id" />
+          </mat-form-field>
+        </form>
+      </section>
+    }
+
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Carregando produtos" />
+    }
+
+    @if (loadError()) {
+      <div class="state-message state-message--error" role="alert">
+        <div>
+          <strong>Não foi possível carregar os produtos</strong>
+          <p>{{ loadError() }}</p>
+        </div>
+        <button mat-stroked-button type="button" (click)="reload()">Tentar novamente</button>
+      </div>
+    }
+
+    @if (actionError()) {
+      <div class="state-message state-message--error" role="alert">
+        <div>
+          <strong>A alteração não foi concluída</strong>
+          <p>{{ actionError() }}</p>
+        </div>
+        <button mat-button type="button" (click)="actionError.set(null)">Dispensar</button>
+      </div>
+    }
+
+    @if (!loading() && !loadError() && products().length === 0) {
+      <div class="empty-state">
+        <h3>Nenhum produto cadastrado</h3>
+        <p>Use “Novo produto” ou o atalho Alt+N para iniciar o cadastro.</p>
+        <button mat-flat-button type="button" (click)="openCreateDialog()">Novo produto</button>
+      </div>
+    } @else if (!loading() && filteredProducts().length === 0) {
+      <div class="empty-state empty-state--compact">
+        <h3>Nenhum resultado</h3>
+        <p>Revise a busca ou os filtros aplicados.</p>
+        <button mat-stroked-button type="button" (click)="clearFilters()">Limpar filtros</button>
+      </div>
+    } @else if (filteredProducts().length > 0) {
+      <div class="desktop-table">
+        <table mat-table [dataSource]="filteredProducts()">
+          <ng-container matColumnDef="code">
+            <th mat-header-cell *matHeaderCellDef>Código</th>
+            <td mat-cell *matCellDef="let product" class="code-cell">
+              <strong>{{ product.code }}</strong>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Nome</th>
+            <td mat-cell *matCellDef="let product" class="name-cell">
+              <strong>{{ product.name }}</strong>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>Descrição</th>
+            <td mat-cell *matCellDef="let product" class="description-cell">
+              {{ product.description }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="availableQuantity">
+            <th mat-header-cell *matHeaderCellDef class="numeric-column">Disponível</th>
+            <td mat-cell *matCellDef="let product" class="numeric-column">
+              <strong class="quantity quantity--available">{{ product.availableQuantity }}</strong>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="reservedQuantity">
+            <th mat-header-cell *matHeaderCellDef class="numeric-column">Reservado</th>
+            <td mat-cell *matCellDef="let product" class="numeric-column">
+              <strong class="quantity">{{ product.reservedQuantity }}</strong>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="isActive">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let product">
+              <span class="status" [class.status--inactive]="!product.isActive">
+                <span class="status__dot" aria-hidden="true"></span>
+                {{ product.isActive ? 'Ativo' : 'Inativo' }}
+              </span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>Criado em</th>
+            <td mat-cell *matCellDef="let product" class="date-cell">
+              {{ product.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="updatedAt">
+            <th mat-header-cell *matHeaderCellDef>Atualizado em</th>
+            <td mat-cell *matCellDef="let product" class="date-cell">
+              {{ product.updatedAt | date: 'dd/MM/yyyy HH:mm' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="id">
+            <th mat-header-cell *matHeaderCellDef>ID técnico</th>
+            <td mat-cell *matCellDef="let product" class="technical-cell">{{ product.id }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="actions-cell">Ações</th>
+            <td mat-cell *matCellDef="let product" class="actions-cell">
+              <button
+                mat-button
+                type="button"
+                [disabled]="!product.isActive || isPending(product.id)"
+                [matTooltip]="
+                  product.isActive ? 'Adicionar saldo disponível' : 'Reative o produto para repor'
+                "
+                (click)="openReplenishDialog(product)"
+              >
+                Repor estoque
+              </button>
+              <button
+                mat-button
+                type="button"
+                [class.danger-action]="product.isActive"
+                [disabled]="isPending(product.id)"
+                (click)="confirmActivation(product)"
+              >
+                {{ product.isActive ? 'Inativar' : 'Reativar' }}
+              </button>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+        </table>
+      </div>
+
+      <div class="mobile-product-list" aria-label="Lista de produtos">
+        @for (product of filteredProducts(); track product.id) {
+          <article class="product-card">
+            <div class="product-card__heading">
+              <div>
+                @if (isColumnVisible('code')) {
+                  <strong>{{ product.code }}</strong>
+                }
+                @if (isColumnVisible('name')) {
+                  <p>{{ product.name }}</p>
+                }
+              </div>
+              @if (isColumnVisible('isActive')) {
+                <span class="status" [class.status--inactive]="!product.isActive">
+                  <span class="status__dot" aria-hidden="true"></span>
+                  {{ product.isActive ? 'Ativo' : 'Inativo' }}
+                </span>
+              }
+            </div>
+            @if (isColumnVisible('description')) {
+              <p class="product-card__description">{{ product.description }}</p>
+            }
+            <dl class="record-fields">
+              @if (isColumnVisible('availableQuantity')) {
+                <div>
+                  <dt>Disponível</dt>
+                  <dd>{{ product.availableQuantity }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('reservedQuantity')) {
+                <div>
+                  <dt>Reservado</dt>
+                  <dd>{{ product.reservedQuantity }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('createdAt')) {
+                <div>
+                  <dt>Criado em</dt>
+                  <dd>{{ product.createdAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('updatedAt')) {
+                <div>
+                  <dt>Atualizado em</dt>
+                  <dd>{{ product.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+                </div>
+              }
+              @if (isColumnVisible('id')) {
+                <div class="record-field--wide">
+                  <dt>ID técnico</dt>
+                  <dd>{{ product.id }}</dd>
+                </div>
+              }
+            </dl>
+            <div class="product-card__actions">
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="!product.isActive || isPending(product.id)"
+                (click)="openReplenishDialog(product)"
+              >
+                Repor estoque
+              </button>
+              <button
+                mat-button
+                type="button"
+                [class.danger-action]="product.isActive"
+                [disabled]="isPending(product.id)"
+                (click)="confirmActivation(product)"
+              >
+                {{ product.isActive ? 'Inativar' : 'Reativar' }}
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+</section>

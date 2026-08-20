@@ -1,0 +1,30 @@
+@startuml
+class Invoice <<sealed>> {
+    + {static} Create(now:DateTimeOffset) : Invoice
+    + Number : long <<get>>
+    + IsCancelled : bool <<get>>
+    + SetLine(productId:Guid, quantity:int) : void
+    + RemoveLine(productId:Guid) : bool
+    + Cancel(now:DateTimeOffset) : void
+    + Close(now:DateTimeOffset) : void
+}
+enum InvoiceStatus {
+    Open= 1,
+    Closed= 2,
+}
+class "List`1"<T> {
+}
+Invoice --> "Id" Guid
+Invoice o-> "Status" InvoiceStatus
+Invoice --> "CreatedAt" DateTimeOffset
+Invoice --> "ClosedAt" DateTimeOffset
+Invoice --> "CancelledAt" DateTimeOffset
+Invoice o-> "Lines<InvoiceLine>" "List`1"
+class InvoiceLine <<sealed>> {
+    + Quantity : int <<get>>
+}
+InvoiceLine --> "Id" Guid
+InvoiceLine --> "InvoiceId" Guid
+InvoiceLine --> "ProductId" Guid
+InvoiceLine o-> "Invoice" Invoice
+@enduml

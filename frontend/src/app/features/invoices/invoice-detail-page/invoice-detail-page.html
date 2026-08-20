@@ -1,0 +1,239 @@
+<section class="page-container" aria-labelledby="invoice-title">
+  <a class="back-link" routerLink="/notas" queryParamsHandling="preserve"
+    >← Voltar para notas fiscais</a
+  >
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Carregando nota fiscal" />
+  }
+
+  @if (loadError()) {
+    <div class="state-message state-message--error" role="alert">
+      <div>
+        <strong>Não foi possível carregar a nota</strong>
+        <p>{{ loadError() }}</p>
+      </div>
+      <button mat-stroked-button type="button" (click)="reload()">Tentar novamente</button>
+    </div>
+  }
+
+  @if (invoice(); as current) {
+    <header class="workspace-header">
+      <div class="workspace-heading">
+        <p class="breadcrumb">Faturamento <span aria-hidden="true">/</span> Nota fiscal</p>
+        <div class="title-line">
+          <h1 id="invoice-title">Nota #{{ current.number }}</h1>
+          <span [class]="statusClass()"><span aria-hidden="true"></span>{{ statusLabel() }}</span>
+        </div>
+        <p class="technical-id">ID {{ current.id }}</p>
+      </div>
+      <div class="page-commands" aria-label="Ações da nota">
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="reload()"
+          [disabled]="loading() || !!pendingAction()"
+        >
+          Atualizar <kbd>Alt+R</kbd>
+        </button>
+        @if (editable()) {
+          <button
+            mat-stroked-button
+            class="danger-action"
+            type="button"
+            (click)="confirmCancel()"
+            [disabled]="!!pendingAction()"
+          >
+            Cancelar nota
+          </button>
+          <button
+            mat-flat-button
+            type="button"
+            (click)="confirmPrint()"
+            [disabled]="current.lines.length === 0 || !!pendingAction()"
+            [matTooltip]="
+              current.lines.length === 0
+                ? 'Inclua ao menos um item'
+                : 'Consome as reservas e fecha a nota'
+            "
+          >
+            Fechar e imprimir <kbd>Alt+P</kbd>
+          </button>
+        } @else if (!current.isCancelled) {
+          <button mat-flat-button type="button" (click)="openPrintView()">
+            Abrir impressão <kbd>Alt+P</kbd>
+          </button>
+        }
+      </div>
+    </header>
+
+    <dl class="summary-strip" aria-label="Resumo da nota">
+      <div>
+        <dt>Criada em</dt>
+        <dd>{{ current.createdAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+      </div>
+      <div>
+        <dt>Itens</dt>
+        <dd>{{ current.lines.length }}</dd>
+      </div>
+      <div>
+        <dt>Quantidade</dt>
+        <dd>{{ totalQuantity() }}</dd>
+      </div>
+      <div>
+        <dt>Conclusão</dt>
+        <dd>{{ (current.closedAt ?? current.cancelledAt | date: 'dd/MM/yyyy HH:mm') || '—' }}</dd>
+      </div>
+    </dl>
+
+    @if (actionError()) {
+      <div class="state-message state-message--error" role="alert">
+        <div>
+          <strong>A alteração não foi concluída</strong>
+          <p>{{ actionError() }}</p>
+        </div>
+        <button mat-button type="button" (click)="actionError.set(null)">Dispensar</button>
+      </div>
+    }
+
+    @if (!editable()) {
+      <div class="readonly-notice">
+        <strong>Nota somente para consulta.</strong>
+        <span>{{
+          current.isCancelled
+            ? 'O cancelamento devolveu as reservas ao estoque.'
+            : 'A impressão consumiu as reservas e fechou a nota.'
+        }}</span>
+      </div>
+    }
+
+    <section class="data-workspace" aria-labelledby="invoice-items-title">
+      <div class="data-toolbar">
+        <div>
+          <h2 id="invoice-items-title">Itens e reservas</h2>
+          <span>{{ current.lines.length }} produto(s) na nota</span>
+        </div>
+        @if (editable()) {
+          <button
+            mat-flat-button
+            type="button"
+            (click)="openLineDialog()"
+            [disabled]="!!pendingAction() || eligibleProducts().length === 0"
+            [matTooltip]="
+              eligibleProducts().length === 0
+                ? 'Não há outro produto ativo com saldo disponível'
+                : 'Reserva estoque para esta nota'
+            "
+          >
+            Adicionar item <kbd>Alt+I</kbd>
+          </button>
+        }
+      </div>
+
+      @if (current.lines.length === 0) {
+        <div class="empty-state">
+          <h3>Nota sem itens</h3>
+          <p>Adicione produtos para reservar o estoque antes da impressão.</p>
+          @if (editable()) {
+            <button
+              mat-flat-button
+              type="button"
+              (click)="openLineDialog()"
+              [disabled]="eligibleProducts().length === 0"
+            >
+              Adicionar primeiro item
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="desktop-table">
+          <table mat-table [dataSource]="lineRows()">
+            <ng-container matColumnDef="product"
+              ><th mat-header-cell *matHeaderCellDef>Produto</th>
+              <td mat-cell *matCellDef="let row">
+                <strong>{{ row.product?.code ?? 'Produto indisponível' }}</strong
+                ><span>{{ row.product?.name ?? row.productId }}</span>
+              </td></ng-container
+            >
+            <ng-container matColumnDef="available"
+              ><th mat-header-cell *matHeaderCellDef class="numeric-column">Disponível</th>
+              <td mat-cell *matCellDef="let row" class="numeric-column">
+                {{ row.product?.availableQuantity ?? '—' }}
+              </td></ng-container
+            >
+            <ng-container matColumnDef="quantity"
+              ><th mat-header-cell *matHeaderCellDef class="numeric-column">
+                {{ editable() ? 'Reservado na nota' : 'Quantidade' }}
+              </th>
+              <td mat-cell *matCellDef="let row" class="numeric-column">
+                <strong>{{ row.quantity }}</strong>
+              </td></ng-container
+            >
+            <ng-container matColumnDef="actions"
+              ><th mat-header-cell *matHeaderCellDef class="actions-cell">Ações</th>
+              <td mat-cell *matCellDef="let row" class="actions-cell">
+                @if (editable()) {
+                  <button
+                    mat-button
+                    type="button"
+                    (click)="openLineDialog(row)"
+                    [disabled]="!!pendingAction()"
+                  >
+                    Alterar</button
+                  ><button
+                    mat-button
+                    class="danger-action"
+                    type="button"
+                    (click)="confirmRemove(row)"
+                    [disabled]="!!pendingAction()"
+                  >
+                    Remover
+                  </button>
+                } @else {
+                  <span>Somente leitura</span>
+                }
+              </td></ng-container
+            >
+            <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          </table>
+        </div>
+
+        <div class="mobile-line-list">
+          @for (row of lineRows(); track row.productId) {
+            <article>
+              <div>
+                <strong>{{ row.product?.code ?? 'Produto' }}</strong
+                ><span>{{ row.product?.name ?? row.productId }}</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>Disponível</dt>
+                  <dd>{{ row.product?.availableQuantity ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>{{ editable() ? 'Reservado' : 'Quantidade' }}</dt>
+                  <dd>{{ row.quantity }}</dd>
+                </div>
+              </dl>
+              @if (editable()) {
+                <div class="card-actions">
+                  <button mat-stroked-button type="button" (click)="openLineDialog(row)">
+                    Alterar</button
+                  ><button
+                    mat-button
+                    class="danger-action"
+                    type="button"
+                    (click)="confirmRemove(row)"
+                  >
+                    Remover
+                  </button>
+                </div>
+              }
+            </article>
+          }
+        </div>
+      }
+    </section>
+  }
+</section>

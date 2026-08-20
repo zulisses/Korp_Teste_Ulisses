@@ -1,0 +1,116 @@
+services:
+  stock-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: korp_stock
+      POSTGRES_USER: korp
+      POSTGRES_PASSWORD: korp_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - stock-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U korp -d korp_stock"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  billing-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: korp_billing
+      POSTGRES_USER: korp
+      POSTGRES_PASSWORD: korp_dev_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - billing-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U korp -d korp_billing"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  stock-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: src/StockService/StockService.csproj
+        SERVICE_DLL: StockService.dll
+    environment:
+      ConnectionStrings__Stock: Host=stock-db;Port=5432;Database=korp_stock;Username=korp;Password=korp_dev_password
+    depends_on:
+      stock-db:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+
+  billing-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PROJECT_PATH: src/BillingService/BillingService.csproj
+        SERVICE_DLL: BillingService.dll
+    environment:
+      ConnectionStrings__Billing: Host=billing-db;Port=5432;Database=korp_billing;Username=korp;Password=korp_dev_password
+      Services__Stock: http://stock-service:8080
+    depends_on:
+      billing-db:
+        condition: service_healthy
+      stock-service:
+        condition: service_started
+    ports:
+      - "8082:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      stock-service:
+        condition: service_started
+      billing-service:
+        condition: service_started
+    ports:
+      - "4200:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  stock-tools:
+    profiles: ["tools"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: tooling
+      args:
+        PROJECT_PATH: src/StockService/StockService.csproj
+    working_dir: /workspace
+    volumes:
+      - ./backend:/workspace
+    environment:
+      ConnectionStrings__Stock: Host=stock-db;Port=5432;Database=korp_stock;Username=korp;Password=korp_dev_password
+    entrypoint: ["dotnet", "tool", "run", "dotnet-ef", "--"]
+
+  billing-tools:
+    profiles: ["tools"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: tooling
+      args:
+        PROJECT_PATH: src/BillingService/BillingService.csproj
+    working_dir: /workspace
+    volumes:
+      - ./backend:/workspace
+    environment:
+      ConnectionStrings__Billing: Host=billing-db;Port=5432;Database=korp_billing;Username=korp;Password=korp_dev_password
+    entrypoint: ["dotnet", "tool", "run", "dotnet-ef", "--"]
+
+volumes:
+  stock-data:
+  billing-data:

@@ -1,0 +1,61 @@
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <h2 mat-dialog-title>{{ data.line ? 'Alterar item' : 'Adicionar item' }}</h2>
+  <mat-dialog-content>
+    <p class="dialog-intro">A quantidade informada será reservada imediatamente no estoque.</p>
+    @if (error()) {
+      <p class="dialog-error" role="alert">{{ error() }}</p>
+    }
+
+    <div class="form-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Produto</mat-label>
+        <mat-select formControlName="productId">
+          @for (product of data.products; track product.id) {
+            <mat-option [value]="product.id">
+              {{ product.code }} — {{ product.name }} ({{ product.availableQuantity }} disponíveis)
+            </mat-option>
+          }
+        </mat-select>
+        @if (form.controls.productId.hasError('required')) {
+          <mat-error>Selecione um produto.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Quantidade</mat-label>
+        <input
+          #quantityInput
+          matInput
+          type="number"
+          min="1"
+          [max]="maximumQuantity()"
+          step="1"
+          formControlName="quantity"
+          cdkFocusInitial
+        />
+        @if (selectedProduct()) {
+          <mat-hint>Limite para esta nota: {{ maximumQuantity() }}</mat-hint>
+        }
+        @if (form.controls.quantity.invalid) {
+          <mat-error>Informe um inteiro entre 1 e {{ maximumQuantity() }}.</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    @if (!data.line && data.products.length === 0) {
+      <p class="no-products">Não há produtos ativos com saldo disponível fora desta nota.</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" [disabled]="saving()">
+      Cancelar
+    </button>
+    <button mat-flat-button type="submit" [disabled]="saving() || data.products.length === 0">
+      @if (saving()) {
+        <mat-spinner diameter="18" aria-label="Salvando item" />
+      } @else {
+        {{ data.line ? 'Salvar alteração' : 'Adicionar item' }}
+      }
+    </button>
+  </mat-dialog-actions>
+</form>

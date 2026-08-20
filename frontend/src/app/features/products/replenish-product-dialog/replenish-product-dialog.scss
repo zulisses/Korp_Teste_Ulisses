@@ -1,0 +1,29 @@
+mat-dialog-content {
+  display: grid;
+  width: min(480px, calc(100vw - 32px));
+  max-width: 100%;
+  padding-top: 4px !important;
+}
+
+.product-context {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.product-context span,
+.current-balance {
+  color: var(--korp-text-muted);
+}
+
+.current-balance {
+  margin: 8px 0 22px;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+mat-spinner {
+  display: inline-block;
+}

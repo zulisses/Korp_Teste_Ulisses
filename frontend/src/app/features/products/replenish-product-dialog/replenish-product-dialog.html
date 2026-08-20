@@ -1,0 +1,47 @@
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <h2 mat-dialog-title>Repor estoque</h2>
+
+  <mat-dialog-content>
+    <p class="product-context">
+      <strong>{{ product.code }}</strong>
+      <span>{{ product.name }}</span>
+    </p>
+    <p class="current-balance">
+      Saldo disponível atual: <strong>{{ product.availableQuantity }}</strong>
+    </p>
+
+    @if (error()) {
+      <p class="dialog-error" role="alert" tabindex="-1">{{ error() }}</p>
+    }
+
+    <mat-form-field appearance="outline">
+      <mat-label>Quantidade a adicionar</mat-label>
+      <input
+        #quantityInput
+        matInput
+        type="number"
+        min="1"
+        step="1"
+        formControlName="quantity"
+        cdkFocusInitial
+      />
+      <mat-hint>A reposição deve ser um número inteiro positivo</mat-hint>
+      @if (form.controls.quantity.invalid) {
+        <mat-error>Informe um número inteiro maior que zero.</mat-error>
+      }
+    </mat-form-field>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [mat-dialog-close]="false" [disabled]="saving()">
+      Cancelar
+    </button>
+    <button mat-flat-button type="submit" [disabled]="saving()">
+      @if (saving()) {
+        <mat-spinner diameter="18" aria-label="Salvando reposição" />
+      } @else {
+        Confirmar reposição
+      }
+    </button>
+  </mat-dialog-actions>
+</form>

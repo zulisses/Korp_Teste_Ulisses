@@ -1,0 +1,83 @@
+@startuml
+class Product <<sealed>> {
+    + Product(code:string, name:string, description:string, initialQuantity:int, now:DateTimeOffset)
+    + Code : string <<get>>
+    + Name : string <<get>>
+    + Description : string <<get>>
+    + AvailableQuantity : int <<get>>
+    + ReservedQuantity : int <<get>>
+    + IsActive : bool <<get>> = true
+    + {static} NormalizeCode(code:string) : string
+    + Replenish(quantity:int, now:DateTimeOffset) : void
+    + SetActive(isActive:bool, now:DateTimeOffset) : void
+}
+Product --> "Id" Guid
+Product --> "CreatedAt" DateTimeOffset
+Product --> "UpdatedAt" DateTimeOffset
+class StockMovement <<sealed>> {
+    + {static} Create(productId:Guid, invoiceId:Guid?, type:StockMovementType, quantity:int, now:DateTimeOffset) : StockMovement
+    + Quantity : int <<get>>
+}
+enum StockMovementType {
+    InitialBalance= 1,
+    Replenishment= 2,
+    Reservation= 3,
+    ReservationAdjustment= 4,
+    Release= 5,
+    Consumption= 6,
+}
+StockMovement --> "Id" Guid
+StockMovement --> "ProductId" Guid
+StockMovement --> "InvoiceId" Guid
+StockMovement --> "Type" StockMovementType
+StockMovement --> "CreatedAt" DateTimeOffset
+StockMovement o-> "Product" Product
+class StockReservation <<sealed>> {
+    + {static} Create(invoiceId:Guid, productId:Guid, quantity:int, now:DateTimeOffset) : StockReservation
+    + SetQuantity(quantity:int, now:DateTimeOffset) : void
+    + Reactivate(quantity:int, now:DateTimeOffset) : void
+    + Release(now:DateTimeOffset) : void
+    + Consume(now:DateTimeOffset) : void
+    + Quantity : int <<get>>
+}
+enum ReservationState {
+    Active= 1,
+    Consumed= 2,
+    Released= 3,
+}
+StockReservation --> "Id" Guid
+StockReservation --> "InvoiceId" Guid
+StockReservation --> "ProductId" Guid
+StockReservation --> "State" ReservationState
+StockReservation --> "CreatedAt" DateTimeOffset
+StockReservation --> "UpdatedAt" DateTimeOffset
+StockReservation o-> "Product" Product
+class Invoice <<sealed>> {
+    + {static} Create(now:DateTimeOffset) : Invoice
+    + Number : long <<get>>
+    + IsCancelled : bool <<get>>
+    + SetLine(productId:Guid, quantity:int) : void
+    + RemoveLine(productId:Guid) : bool
+    + Cancel(now:DateTimeOffset) : void
+    + Close(now:DateTimeOffset) : void
+}
+enum InvoiceStatus {
+    Open= 1,
+    Closed= 2,
+}
+class "List`1"<T> {
+}
+Invoice --> "Id" Guid
+Invoice o-> "Status" InvoiceStatus
+Invoice --> "CreatedAt" DateTimeOffset
+Invoice --> "ClosedAt" DateTimeOffset
+Invoice --> "CancelledAt" DateTimeOffset
+Invoice o-> "Lines<InvoiceLine>" "List`1"
+class InvoiceLine <<sealed>> {
+    + Quantity : int <<get>>
+}
+InvoiceLine --> "Id" Guid
+InvoiceLine --> "InvoiceId" Guid
+InvoiceLine --> "ProductId" Guid
+InvoiceLine o-> "Invoice" Invoice
+@enduml

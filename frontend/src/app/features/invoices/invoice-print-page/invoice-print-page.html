@@ -1,0 +1,122 @@
+<section class="page-container" aria-labelledby="print-page-title">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Carregando documento da nota fiscal" />
+  }
+
+  @if (loadError()) {
+    <div class="print-state print-state--error" role="alert">
+      <strong>Não foi possível preparar a impressão</strong>
+      <p>{{ loadError() }}</p>
+      <a mat-stroked-button routerLink="/notas" queryParamsHandling="preserve">Voltar às notas</a>
+    </div>
+  }
+
+  @if (invoice(); as current) {
+    <nav class="print-toolbar" aria-label="Ações de impressão">
+      <a mat-stroked-button [routerLink]="['/notas', current.id]" queryParamsHandling="preserve">
+        Voltar à nota
+      </a>
+      @if (printable()) {
+        <div>
+          <span>Confira os dados antes de continuar.</span>
+          <button mat-flat-button type="button" (click)="print()">
+            Imprimir ou salvar PDF <kbd>Alt+P</kbd>
+          </button>
+        </div>
+      }
+    </nav>
+
+    @if (!printable()) {
+      <div class="print-state print-state--warning" role="alert">
+        <strong>Esta nota não pode ser impressa</strong>
+        <p>
+          {{
+            current.isCancelled
+              ? 'A nota foi cancelada e permanece somente para consulta.'
+              : 'Feche a nota antes de preparar o documento de impressão.'
+          }}
+        </p>
+        <a mat-stroked-button [routerLink]="['/notas', current.id]" queryParamsHandling="preserve">
+          Voltar à nota
+        </a>
+      </div>
+    } @else {
+      <article class="invoice-print-page" aria-label="Documento imprimível da nota fiscal">
+        <header class="document-header">
+          <div class="document-brand">
+            <span aria-hidden="true">K</span>
+            <div>
+              <strong>Korp</strong>
+              <small>Gestão empresarial</small>
+            </div>
+          </div>
+          <div class="document-number">
+            <p>Nota fiscal</p>
+            <h1 id="print-page-title">Nº {{ current.number }}</h1>
+            <span>Fechada</span>
+          </div>
+        </header>
+
+        <dl class="document-metadata">
+          <div>
+            <dt>Emissão</dt>
+            <dd>{{ current.createdAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+          </div>
+          <div>
+            <dt>Fechamento</dt>
+            <dd>{{ current.closedAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+          </div>
+          <div>
+            <dt>Identificador</dt>
+            <dd>{{ current.id }}</dd>
+          </div>
+        </dl>
+
+        <section class="document-items" aria-labelledby="document-items-title">
+          <h2 id="document-items-title">Itens da nota</h2>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Código</th>
+                <th scope="col">Produto</th>
+                <th scope="col" class="quantity-column">Quantidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.productId; let position = $index) {
+                <tr>
+                  <td>{{ position + 1 }}</td>
+                  <td class="product-code">{{ row.code }}</td>
+                  <td>
+                    <strong>{{ row.name }}</strong>
+                    @if (row.description) {
+                      <span>{{ row.description }}</span>
+                    }
+                  </td>
+                  <td class="quantity-column">{{ row.quantity }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+
+        <dl class="document-totals" aria-label="Totais da nota">
+          <div>
+            <dt>Produtos</dt>
+            <dd>{{ rows().length }}</dd>
+          </div>
+          <div>
+            <dt>Quantidade total</dt>
+            <dd>{{ totalQuantity() }}</dd>
+          </div>
+        </dl>
+
+        <footer>
+          <p>Documento operacional emitido pelo Korp ERP.</p>
+          <p>Nota #{{ current.number }} · {{ current.id }}</p>
+        </footer>
+      </article>
+    }
+  }
+</section>
