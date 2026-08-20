@@ -32,13 +32,6 @@ docker compose up --build -d
 
 O comando sobe os cinco contêineres do ambiente: frontend, dois microsserviços e dois PostgreSQL independentes. No navegador, o Nginx do frontend encaminha `/stock-api` e `/billing-api` para os serviços correspondentes.
 
-Endpoints de prontidão:
-
-```text
-GET http://localhost:8081/health/ready
-GET http://localhost:8082/health/ready
-```
-
 ## Frontend
 
 O frontend usa Angular 22, Angular Material, componentes standalone, TypeScript estrito, Signals, RxJS e formulários reativos. A versão final entrega:
